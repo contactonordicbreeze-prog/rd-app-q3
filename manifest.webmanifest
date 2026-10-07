@@ -1,0 +1,13 @@
+{
+  "name": "Rinde — Seguimiento de FCI",
+  "short_name": "Rinde",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1115",
+  "theme_color": "#5048e5",
+  "lang": "es-AR",
+  "icons": [
+    { "src": "icons/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

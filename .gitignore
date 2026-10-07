@@ -1,0 +1,4 @@
+.claude/
+# Solo se publica el logo; el resto de íconos ya está incrustado en js/icons.js
+icons/*
+!icons/logo.svg
