@@ -54,8 +54,11 @@ const sCompact = (n) => (hidden() ? '•••' : (n > 0 ? '+' : '') + compact(n
 // Para tarjetas chicas: importe entero si entra, abreviado si es muy grande.
 const sStat = (n) => (Math.abs(n) < 1e6 ? sMoney(n, 0) : '$ ' + sCompact(n));
 const stat = (n) => (Math.abs(n) < 1e7 ? money(n, 0) : '$ ' + compact(n));
-const pct = (r, dec = 2) => (r == null || !isFinite(r) ? '—' : `${r > 0 ? '+' : r < 0 ? '−' : ''}${fmt(Math.abs(r) * 100, dec, dec)}%`);
-const pctU = (r, dec = 2) => (r == null || !isFinite(r) ? '—' : `${fmt(r * 100, dec, dec)}%`);
+// Porcentajes desmedidos (por un importe mal cargado) se muestran abreviados para no romper el diseño.
+const pctBad = (r) => r == null || !isFinite(r);
+const pctBig = (r) => Math.abs(r) >= 100; // ≥ 10.000%
+const pct = (r, dec = 2) => (pctBad(r) ? '—' : `${r > 0 ? '+' : r < 0 ? '−' : ''}${pctBig(r) ? '>10.000' : fmt(Math.abs(r) * 100, dec, dec)}%`);
+const pctU = (r, dec = 2) => (pctBad(r) ? '—' : pctBig(r) ? '>10.000%' : `${fmt(r * 100, dec, dec)}%`);
 const cls = (n) => (n > 0 ? 'good' : n < 0 ? 'bad' : '');
 
 /* ================= Icons ================= */

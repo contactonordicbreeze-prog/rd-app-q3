@@ -471,3 +471,10 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .readout:empty { display: none; }
 .readout b { color: var(--text); }
 .row-edit { color: var(--muted); display: grid; place-items: center; flex: none; margin-left: -4px; }
+
+/* ============ Nada puede ensanchar la pantalla ============ */
+.app, .view { max-width: 100vw; }
+.view { overflow-x: clip; overflow-wrap: anywhere; }
+.stat .delta, .stat .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.radio-cards > *, .radio-card span, .form-row > *, .field { min-width: 0; }
+.radio-card span > span { min-width: 0; overflow-wrap: anywhere; }
