@@ -186,7 +186,15 @@ const eyeBtn = () => `<button class="icon-btn" data-act="toggleHide" aria-label=
 const moneyField = (name, label, value, { big = false, help = '', placeholder = '0,00' } = {}) => `
   <div class="field"><label for="f-${name}">${label}</label>
   <div class="input-wrap"><span class="prefix ${big ? 'big' : ''}">$</span><input class="input has-prefix ${big ? 'big' : ''} num" id="f-${name}" name="${name}" inputmode="decimal" autocomplete="off" placeholder="${placeholder}" value="${value != null && value !== '' ? esc(fmt(value, 2)) : ''}"></div>
+  <span class="readout num" aria-live="polite"></span>
   ${help ? `<span class="help">${help}</span>` : ''}</div>`;
+// Muestra el importe interpretado ("$ 1.250.000,00 · 1,25 millones") para detectar un dígito de más o de menos.
+const magnitude = (n) => { const a = Math.abs(n); return a >= 1e6 ? `${fmt(a / 1e6, 2)} ${a >= 2e6 ? 'millones' : 'millón'}` : a >= 1e3 ? `${fmt(a / 1e3, 1)} mil` : ''; };
+function updateReadout(inp) {
+  const ro = inp.closest('.field')?.querySelector('.readout'); if (!ro) return;
+  const n = parseMoney(inp.value);
+  ro.innerHTML = n == null ? '' : `Se guarda: <b>${n < 0 ? '−' : ''}$ ${fmt(Math.abs(n), 2, 2)}</b>${magnitude(n) ? ` · ${magnitude(n)}` : ''}`;
+}
 const dateField = (name, label, value, max = todayK()) => `
   <div class="field"><label for="f-${name}">${label}</label><input class="input" type="date" id="f-${name}" name="${name}" value="${value}" max="${max}" required></div>`;
 const radio = (name, value, label, cur, iconName = '', sub = '') => `<label class="radio-card"><input type="radio" name="${name}" value="${value}" ${cur === value ? 'checked' : ''}><span>${iconName ? ic(iconName) : ''}<span>${label}${sub ? `<small>${sub}</small>` : ''}</span></span></label>`;
@@ -290,7 +298,7 @@ function openDaySheet(k) {
       <div class="list-row"><div class="info"><b>Rendimiento acumulado</b><small>ponderado por tiempo</small></div><b class="num ${cls(row.twr)}">${pct(row.twr)}</b></div>
       ${row.days > 1 ? `<div class="list-row"><div class="info"><b>Promedio por día</b><small>${row.days} días desde el registro anterior</small></div><b class="num ${cls(row.gain)}">${sMoney(row.gain / row.days)}</b></div>` : ''}
       ${flowsHere.map((f) => `<div class="list-row"><div class="info"><b>${f.amount > 0 ? 'Aporte' : 'Rescate'}</b><small>${esc(f.note || '')}</small></div><b class="num ${f.amount > 0 ? 'good' : 'bad'}">${sMoney(f.amount)}</b></div>`).join('')}`,
-    foot: `<button class="btn" data-act="valueSheet" data-d="${k}">${ic('edit', 'sm')} Editar</button>`,
+    foot: `<button class="btn danger" data-act="delValue" data-d="${k}" aria-label="Eliminar">${ic('trash2')}</button><button class="btn primary" data-act="valueSheet" data-d="${k}">${ic('edit', 'sm')} Corregir</button>`,
   });
 }
 
@@ -463,8 +471,8 @@ function viewSummary() {
     <div class="grid cols-2" style="margin-bottom:12px">
       <section class="card hero">
         <div class="hero-top"><div style="min-width:0">
-          <div class="lbl">${ic('wallet', 'sm')} Capital actual</div>
-          <div class="big num">${money(c.capital)}</div>
+          <div class="lbl">${ic('wallet', 'sm')} Capital actual <button class="link-btn" data-act="valueSheet" data-d="${last.d}" style="margin-left:auto">${ic('edit', 'sm')} Corregir</button></div>
+          <div class="big num ${money(c.capital).length > 16 ? 'long' : ''}">${money(c.capital)}</div>
           <div class="pill-delta ${cls(lastGainRow.gain)}">${ic(lastGainRow.gain >= 0 ? 'up' : 'down', 'sm')} ${sMoney(lastGainRow.gain)} · ${pct(lastGainRow.r, 3)} <span>${lastGainRow.days > 1 ? `en ${lastGainRow.days} días` : dRel(last.d).toLowerCase()}</span></div>
         </div></div>
         <div class="hero-kv">
@@ -546,7 +554,7 @@ function viewCalendar() {
 function viewHistory() {
   const c = compute();
   const rows = [...c.rows].reverse();
-  const head = `<header class="header"><div><h1>Historial</h1><div class="sub">${rows.length} ${rows.length === 1 ? 'registro' : 'registros'} de capital</div></div>
+  const head = `<header class="header"><div><h1>Historial</h1><div class="sub">${rows.length} ${rows.length === 1 ? 'registro' : 'registros'} · tocá uno para corregirlo</div></div>
     <div class="header-actions">${eyeBtn()}<button class="btn primary sm" data-act="valueSheet">${ic('plus', 'sm')} Cargar</button></div></header>`;
   if (!rows.length) return `${head}<section class="card"><div class="empty">${ic('history')}<b>Sin registros</b>Cargá el capital del fondo cada día para ver tu historial.</div></section>`;
   const groups = {};
@@ -556,10 +564,10 @@ function viewHistory() {
     return `<div class="month-head"><h3>${monthLabel(k)}</h3><span class="num ${cls(st.gain)}">${sMoney(st.gain, 0)} · ${pct(st.ret)}</span></div>
       <section class="card rows">${rs.map((r) => {
         const d = parseK(r.d), first = r.prev + r.F <= 0 || r === c.rows[0];
-        return `<button class="row-item" data-act="dayDetail" data-k="${r.d}">
+        return `<button class="row-item" data-act="valueSheet" data-d="${r.d}" aria-label="Editar registro del ${dLong(r.d)}">
           <span class="row-ic num">${d.getDate()}<small>${DOW_S[d.getDay()]}</small></span>
           <span class="info"><b class="num">${money(r.v)}</b><small>${r.F ? `<span class="badge ${r.F > 0 ? 'in' : 'out'}">${r.F > 0 ? 'Aporte' : 'Rescate'} ${sCompact(r.F)}</span>` : ''}${r.days > 1 && !first ? `<span>${r.days} días</span>` : ''}${first ? '<span>Registro inicial</span>' : ''}</small></span>
-          <span class="right"><b class="num ${cls(r.gain)}">${sMoney(r.gain)}</b><small class="num ${cls(r.gain)}">${pct(r.r, 3)}</small></span></button>`;
+          <span class="right"><b class="num ${cls(r.gain)}">${sMoney(r.gain)}</b><small class="num ${cls(r.gain)}">${pct(r.r, 3)}</small></span><span class="row-edit">${ic('edit', 'sm')}</span></button>`;
       }).join('')}</section>`;
   }).join('')}
   <p style="text-align:center;margin-top:18px"><button class="link-btn" data-act="csv">${ic('dl', 'sm')} Descargar historial en CSV (Excel)</button></p>`;
@@ -569,7 +577,7 @@ function viewHistory() {
 function viewFlows() {
   const c = compute();
   const flows = [...db.flows].sort((a, b) => b.d.localeCompare(a.d));
-  return `<header class="header"><div><h1>Aportes</h1><div class="sub">Lo que invertiste y retiraste</div></div>
+  return `<header class="header"><div><h1>Aportes</h1><div class="sub">Tocá un movimiento para corregirlo</div></div>
     <div class="header-actions">${eyeBtn()}<button class="btn primary sm" data-act="flowSheet">${ic('plus', 'sm')} Nuevo</button></div></header>
     <div class="grid cols-4" style="margin-bottom:12px">
       <div class="card stat"><span class="lbl">${ic('archdown')} Aportado</span><span class="val num">${stat(c.deposits)}</span></div>
@@ -580,7 +588,7 @@ function viewFlows() {
     ${flows.length ? `<section class="card rows">${flows.map((f) => `<button class="row-item" data-act="editFlow" data-id="${f.id}">
         <span class="row-ic ${f.amount > 0 ? 'in' : 'out'}">${ic(f.amount > 0 ? 'archdown' : 'archup')}</span>
         <span class="info"><b>${f.amount > 0 ? 'Aporte' : 'Rescate'}</b><small>${dLong(f.d)}${f.note ? ' · ' + esc(f.note) : ''}</small></span>
-        <span class="right"><b class="num ${f.amount > 0 ? 'good' : 'bad'}">${sMoney(f.amount)}</b></span></button>`).join('')}</section>`
+        <span class="right"><b class="num ${f.amount > 0 ? 'good' : 'bad'}">${sMoney(f.amount)}</b></span><span class="row-edit">${ic('edit', 'sm')}</span></button>`).join('')}</section>`
       : `<section class="card"><div class="empty">${ic('wallet')}<b>Sin movimientos</b>Registrá cada vez que invertís o retirás dinero del fondo.</div></section>`}`;
 }
 
@@ -618,6 +626,7 @@ function viewSettings() {
       <div class="list-row"><div class="info"><b>Exportar copia de seguridad</b><small>Archivo .json con todo</small></div><button class="btn sm" data-act="export">${ic('dl', 'sm')} Exportar</button></div>
       <div class="list-row"><div class="info"><b>Importar copia</b><small>Reemplaza los datos actuales</small></div><button class="btn sm" data-act="import">${ic('ul', 'sm')} Importar</button></div>
       <div class="list-row"><div class="info"><b>Historial en CSV</b><small>Para abrir en Excel o Google Sheets</small></div><button class="btn sm" data-act="csv">${ic('doc', 'sm')} CSV</button></div>
+      <div class="list-row"><div class="info"><b>Borrar registros de capital</b><small>Mantiene los aportes; volvés a cargar el capital desde cero</small></div><button class="btn sm danger" data-act="resetValues">${ic('trash2', 'sm')} Borrar</button></div>
       <div class="list-row"><div class="info"><b>Borrar todo</b><small>Elimina aportes y registros</small></div><button class="btn sm danger" data-act="reset">${ic('trash2', 'sm')} Borrar</button></div>
     </section>
     <p class="muted" style="font-size:12px;text-align:center;margin:20px 0">Rinde · los cálculos son estimativos y no constituyen asesoramiento financiero.</p>`;
@@ -702,6 +711,12 @@ const ACTIONS = {
     if (!d) return toast('Elegí una fecha');
     if (d > todayK()) return toast('No podés cargar días futuros');
     if (st.V == null || st.V < 0) return toast(st.mode === 'gain' && st.V < 0 ? 'El capital resultante sería negativo' : 'Ingresá un importe');
+    const c = contextFor(d), base = c.prevV + c.F, chg = base > 0 ? (st.V - base) / base : 0;
+    if (c.prevD && Math.abs(chg) > 0.03 && !confirm(`El capital ${chg > 0 ? 'sube' : 'baja'} ${pct(chg)} respecto del registro anterior (${money(c.prevV)}${c.F ? ` + movimientos ${sMoney(c.F)}` : ''}).
+
+Un FCI normalmente varía menos de 0,2% por día. ¿Revisaste que no falte o sobre un dígito?
+
+Aceptar = guardar igual`)) return;
     const ex = db.values.find((x) => x.d === d);
     if (ex) ex.v = Math.round(st.V * 100) / 100; else db.values.push({ d, v: Math.round(st.V * 100) / 100 });
     save(); closeSheet(); render(); toast(ex ? 'Registro actualizado' : 'Capital guardado');
@@ -733,6 +748,7 @@ const ACTIONS = {
   export: exportData,
   import: importData,
   csv: () => (compute().rows.length ? exportCSV() : toast('Todavía no hay registros')),
+  resetValues: () => { if (confirm(`¿Borrar los ${db.values.length} registros de capital? Los aportes y rescates se mantienen.`)) { db.values = []; save(); render(); toast('Registros de capital borrados'); } },
   reset: () => { if (confirm('¿Borrar TODOS tus datos? Esta acción no se puede deshacer. Te recomendamos exportar una copia antes.') && confirm('¿Seguro? Se perderá todo.')) { db = fresh(); save(); applyTheme(); location.hash = ''; render(); } },
 };
 
@@ -748,7 +764,9 @@ document.addEventListener('change', (e) => {
 document.addEventListener('focusout', (e) => {
   const t = e.target; if (!t.matches?.('.input.has-prefix')) return;
   const n = parseMoney(t.value); if (n != null) t.value = fmt(n, 2);
+  updateReadout(t);
 });
+document.addEventListener('input', (e) => { if (e.target.matches?.('.input.has-prefix')) updateReadout(e.target); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (ui.view === 'resumen' && db.settings && !$('#sheet-root').firstChild) render(); }, 200); });
 window.addEventListener('hashchange', route);

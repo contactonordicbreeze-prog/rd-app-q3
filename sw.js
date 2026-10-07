@@ -1,5 +1,5 @@
 // Service worker: hace que la app funcione sin conexión y sea instalable.
-const CACHE = 'rinde-v1';
+const CACHE = 'rinde-v2';
 const ASSETS = ['./', './index.html', './css/styles.css', './js/icons.js', './js/app.js', './manifest.webmanifest', './icons/logo.svg'];
 
 self.addEventListener('install', (e) => {
